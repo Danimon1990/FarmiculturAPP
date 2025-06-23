@@ -174,7 +174,7 @@ struct NewCropView: View {
                         section: sectionIndex + 1,
                         bed: bedIndex + 1,
                         plantCount: 0,
-                        state: "Available"
+                        state: .clean  // Set initial state to clean
                     )
                 }
             }
@@ -185,12 +185,12 @@ struct NewCropView: View {
 
         // Create the new crop with required fields
         let newCrop = Crop(
-            id: UUID(),
+            id: UUID().uuidString,
             type: type,
             name: name,
             isActive: isActive,
             sections: sections, // Pass the 2D array here
-            beds: [beds],         // Pass the 1D array here
+            beds: beds,         // Pass the 1D array here
             sectionLength: sectionLength,
             sectionWidth: sectionWidth,
             activities: activities,
@@ -346,7 +346,7 @@ struct NewCropView: View {
                         section: sectionIndex + 1,
                         bed: bedIndex + 1,
                         plantCount: 0,
-                        state: "Available" // Default state for new beds
+                        state: .clean  // Default state for new beds
                     )
                 }
             }

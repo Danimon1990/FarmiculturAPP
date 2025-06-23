@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+
 struct ContentView: View {
     @State private var crops: [Crop] = []
     @State private var totalSeeds: Int = 0
@@ -22,7 +23,7 @@ struct ContentView: View {
                     Label("Crops", systemImage: "leaf")
                 }
 
-            HarvestView(totalSeeds: crops.reduce(0) { $0 + $1.seedsPlanted })
+            HarvestSummaryView(crops: $crops)
                 .tabItem {
                     Label("Harvest", systemImage: "tray.full")
                 }

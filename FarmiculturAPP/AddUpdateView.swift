@@ -40,7 +40,7 @@ struct AddUpdateView: View {
 
     private func confirmObservation() {
         // Append the observation to the crop
-        let newObservation = Observation(date: newObservationDate, text: newObservationText)
+        let newObservation = Observation(id: UUID(), date: newObservationDate, text: newObservationText)
         crop.observations.append(newObservation)
 
         // Clear input

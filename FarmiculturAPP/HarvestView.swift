@@ -6,22 +6,56 @@
 //
 
 import SwiftUI
+
 struct HarvestView: View {
-    var totalSeeds: Int
-
+    let sectionIndex: Int
+    let bedIndex: Int
+    @Binding var crop: Crop
+    
+    @State private var harvestAmount: String = ""
+    @State private var showingConfirmation = false
+    @State private var harvestedAmount = 0
+    
     var body: some View {
-        VStack {
-            Text("Total Seeds Planted")
-                .font(.headline)
-                .padding()
-
-            Text("\(totalSeeds)")
-                .font(.largeTitle)
-                .foregroundColor(.green)
-                .padding()
-
-            // Add more Harvest tab content here
+        Form {
+            Section(header: Text("Harvest Details")) {
+                Text("Section \(sectionIndex + 1), Bed \(bedIndex + 1)")
+                
+                Text("Total Plants Available: \(crop.sections[sectionIndex][bedIndex].totalPlants)")
+                    .font(.headline)
+                
+                TextField("Number of plants to harvest", text: $harvestAmount)
+                    .keyboardType(.numberPad)
+                
+                if let amount = Int(harvestAmount), amount > 0 {
+                    Text("This will harvest \(amount) plants")
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Section {
+                Button("Harvest") {
+                    if let amount = Int(harvestAmount), amount > 0 {
+                        harvestedAmount = amount
+                        showingConfirmation = true
+                    }
+                }
+                .disabled(Int(harvestAmount) == nil || Int(harvestAmount)! <= 0)
+            }
         }
-        .navigationTitle("Harvest")
+        .navigationTitle("Harvest Plants")
+        .alert("Confirm Harvest", isPresented: $showingConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Confirm") {
+                if let amount = Int(harvestAmount) {
+                    let harvested = crop.sections[sectionIndex][bedIndex].harvest(amount: amount)
+                    if harvested > 0 {
+                        harvestAmount = ""
+                    }
+                }
+            }
+        } message: {
+            Text("Are you sure you want to harvest \(harvestedAmount) plants?")
+        }
     }
 }

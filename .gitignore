@@ -115,4 +115,7 @@ iOSInjectionProject/
 .env.production
 
 # Data files (uncomment if you don't want to track sample data)
-# *.json 
+# *.json
+
+# Firebase
+GoogleService-Info.plist 

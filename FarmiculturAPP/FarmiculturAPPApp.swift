@@ -7,9 +7,12 @@
 
 import SwiftUI
 import SwiftData
+import Firebase
 
 @main
 struct FarmiculturAPPApp: App {
+    @StateObject private var firebaseService = FirebaseService.shared
+    
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             
@@ -23,9 +26,19 @@ struct FarmiculturAPPApp: App {
         }
     }()
 
+    init() {
+        FirebaseApp.configure()
+    }
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            if firebaseService.isAuthenticated {
+                ContentView()
+                    .environmentObject(firebaseService)
+            } else {
+                AuthView()
+                    .environmentObject(firebaseService)
+            }
         }
         .modelContainer(sharedModelContainer)
     }

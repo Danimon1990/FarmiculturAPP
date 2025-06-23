@@ -10,6 +10,7 @@ import SwiftUI
 struct ContentView: View {
     @State private var crops: [Crop] = []
     @State private var totalSeeds: Int = 0
+    @EnvironmentObject var firebaseService: FirebaseService
 
     var body: some View {
         TabView {
@@ -31,6 +32,17 @@ struct ContentView: View {
         .onAppear {
             initializeCrops()
         }
+        .navigationBarItems(trailing: signOutButton)
+        .task {
+            await loadCropsFromFirebase()
+        }
+    }
+    
+    private var signOutButton: some View {
+        Button("Sign Out") {
+            firebaseService.signOut()
+        }
+        .foregroundColor(.red)
     }
 
     func initializeCrops() {
@@ -40,5 +52,22 @@ struct ContentView: View {
 
     func saveCrops() {
         CropsDataManager.shared.saveCrops(crops)
+        // Also save to Firebase
+        Task {
+            for crop in crops {
+                await firebaseService.saveCrop(crop)
+            }
+        }
+    }
+    
+    func loadCropsFromFirebase() async {
+        let firebaseCrops = await firebaseService.loadCrops()
+        DispatchQueue.main.async {
+            if !firebaseCrops.isEmpty {
+                self.crops = firebaseCrops
+                // Update local storage as backup
+                CropsDataManager.shared.saveCrops(firebaseCrops)
+            }
+        }
     }
 }

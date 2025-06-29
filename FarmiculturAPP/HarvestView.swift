@@ -11,6 +11,7 @@ struct HarvestView: View {
     let sectionIndex: Int
     let bedIndex: Int
     @Binding var crop: Crop
+    let saveAction: () -> Void
     
     @State private var harvestAmount: String = ""
     @State private var showingConfirmation = false
@@ -51,6 +52,7 @@ struct HarvestView: View {
                     let harvested = crop.sections[sectionIndex][bedIndex].harvest(amount: amount)
                     if harvested > 0 {
                         harvestAmount = ""
+                        saveAction()
                     }
                 }
             }

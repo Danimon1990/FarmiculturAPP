@@ -10,10 +10,12 @@ struct SeedsView: View {
     @Binding var crop: Crop
     let deleteAction: () -> Void // Action to delete the crop
     var totalSeeds: Int
+    let saveAction: () -> Void
     @State private var isAddingUpdate = false
     @State private var newObservationText = ""
     @State private var newObservationDate = Date()
     @State private var showingDeleteConfirmation = false // State for confirmation dialog
+    @State private var showAddTaskSheet = false
     
     
     var body: some View {
@@ -32,6 +34,40 @@ struct SeedsView: View {
                     Text("Soil Used: \(crop.soilUsed ?? "N/A")")
                 }
                 .padding(.horizontal)
+
+                Divider()
+
+                // Tasks section
+                Section(header: Text("Tasks").font(.headline).padding(.leading)) {
+                    if crop.tasks.isEmpty {
+                        Text("No tasks yet.")
+                            .foregroundColor(.secondary)
+                            .padding(.leading)
+                    } else {
+                        ForEach(crop.tasks) { task in
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text(task.title)
+                                        .font(.subheadline)
+                                    if let due = task.dueDate {
+                                        Text("Due: \(due, formatter: dateFormatter)")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                Spacer()
+                                if task.isCompleted {
+                                    Image(systemName: "checkmark.circle.fill").foregroundColor(.green)
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                    }
+                    Button(action: { showAddTaskSheet = true }) {
+                        Label("Add Task", systemImage: "plus")
+                            .padding(.leading)
+                    }
+                }
 
                 Divider()
 
@@ -86,6 +122,16 @@ struct SeedsView: View {
         .sheet(isPresented: $isAddingUpdate) {
             AddUpdateView(crop: $crop, isAddingUpdate: $isAddingUpdate)
         }
+        .sheet(isPresented: $showAddTaskSheet) {
+            AddTaskView(
+                cropID: crop.id,
+                creatorName: "Farmer", // Replace with actual user name if available
+                onSave: { task in
+                    crop.tasks.append(task)
+                    saveAction() // Save the crop when a task is added
+                }
+            )
+        }
     }
 
     private func formattedDate(_ date: Date?) -> String {
@@ -95,3 +141,10 @@ struct SeedsView: View {
         return formatter.string(from: date)
     }
 }
+
+private let dateFormatter: DateFormatter = {
+    let df = DateFormatter()
+    df.dateStyle = .medium
+    df.timeStyle = .none
+    return df
+}()

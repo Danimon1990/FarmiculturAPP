@@ -12,9 +12,10 @@ struct AuthView: View {
             VStack(spacing: 30) {
                 // Logo and Title
                 VStack(spacing: 20) {
-                    Image(systemName: "leaf.fill")
-                        .font(.system(size: 80))
-                        .foregroundColor(.green)
+                    Image("FarmicultureAPP Logo")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 120, height: 120)
                     
                     Text("FarmiculturAPP")
                         .font(.largeTitle)

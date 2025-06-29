@@ -7,6 +7,7 @@
 import Foundation
 import SwiftUI
 
+
 // MARK: - Local Models
 
 struct Crop: Identifiable, Codable, Hashable {
@@ -30,6 +31,7 @@ struct Crop: Identifiable, Codable, Hashable {
     var seedsPlanted: Int
     var potSize: String?
     var soilUsed: String?
+    var tasks: [CropTask] = []
     
     var isHarvestable: Bool {
         return Date() >= expectedHarvestDate
@@ -53,23 +55,30 @@ struct Bed: Identifiable, Codable, Hashable {
     var varieties: [PlantVariety] = []
     
     var totalPlants: Int {
-        return plantCount
+        return varieties.reduce(0) { $0 + $1.count }
     }
     
     mutating func harvest(amount: Int) -> Int {
-        guard state == .harvesting || (state == .growing && plantCount > 0) else {
+        guard state == .harvesting || (state == .growing && totalPlants > 0) else {
             return 0
         }
         
-        let actualHarvest = min(amount, plantCount)
-        plantCount -= actualHarvest
+        var remainingToHarvest = amount
+        var totalHarvested = 0
+        
+        for i in varieties.indices {
+            if remainingToHarvest <= 0 { break }
+            let harvested = varieties[i].harvest(amount: remainingToHarvest)
+            totalHarvested += harvested
+            remainingToHarvest -= harvested
+        }
         
         // Update bed state if no plants remain
-        if plantCount == 0 && state == .harvesting {
+        if totalPlants == 0 && state == .harvesting {
             state = .dirty
         }
         
-        return actualHarvest
+        return totalHarvested
     }
 }
 
@@ -80,7 +89,7 @@ enum BedState: String, Codable, CaseIterable {
     case growing = "growing"
     case harvesting = "harvesting"
     
-    var rawValue: String {
+    var displayName: String {
         switch self {
         case .dirty: return "Dirty"
         case .clean: return "Clean"
@@ -106,7 +115,7 @@ struct PlantVariety: Identifiable, Codable, Hashable {
 struct Activity: Identifiable, Codable, Hashable {
     var id: UUID
     var name: String
-    var description: String?
+    var activityDescription: String?
     var isCompleted: Bool
     var date: Date
 }

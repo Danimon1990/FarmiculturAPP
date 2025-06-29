@@ -9,12 +9,11 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var crops: [Crop] = []
-    @State private var totalSeeds: Int = 0
     @EnvironmentObject var firebaseService: FirebaseService
 
     var body: some View {
         TabView {
-            HomeView(crops: $crops)
+            HomeView(crops: $crops, saveAction: saveCrops)
                 .tabItem {
                     Label("Home", systemImage: "house")
                 }
@@ -24,35 +23,34 @@ struct ContentView: View {
                     Label("Crops", systemImage: "leaf")
                 }
 
-            HarvestSummaryView(crops: $crops)
+            HarvestSummaryView(crops: $crops, saveAction: saveCrops)
                 .tabItem {
                     Label("Harvest", systemImage: "tray.full")
                 }
         }
-        .onAppear {
-            initializeCrops()
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                signOutButton
+            }
         }
-        .navigationBarItems(trailing: signOutButton)
-        .task {
-            await loadCropsFromFirebase()
+        .onAppear {
+            Task {
+                await loadCrops()
+            }
         }
     }
     
     private var signOutButton: some View {
-        Button("Sign Out") {
+        Button(action: {
             firebaseService.signOut()
+        }) {
+            Image(systemName: "rectangle.portrait.and.arrow.right")
+                .foregroundColor(.red)
         }
-        .foregroundColor(.red)
-    }
-
-    func initializeCrops() {
-        CropsDataManager.shared.initializeCropsIfNeeded()
-        crops = CropsDataManager.shared.loadCrops()
     }
 
     func saveCrops() {
         CropsDataManager.shared.saveCrops(crops)
-        // Also save to Firebase
         Task {
             for crop in crops {
                 await firebaseService.saveCrop(crop)
@@ -60,14 +58,13 @@ struct ContentView: View {
         }
     }
     
-    func loadCropsFromFirebase() async {
+    func loadCrops() async {
         let firebaseCrops = await firebaseService.loadCrops()
-        DispatchQueue.main.async {
-            if !firebaseCrops.isEmpty {
-                self.crops = firebaseCrops
-                // Update local storage as backup
-                CropsDataManager.shared.saveCrops(firebaseCrops)
-            }
+        if !firebaseCrops.isEmpty {
+            self.crops = firebaseCrops
+            CropsDataManager.shared.saveCrops(firebaseCrops)
+        } else {
+            self.crops = CropsDataManager.shared.loadCrops()
         }
     }
 }

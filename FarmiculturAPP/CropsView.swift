@@ -50,10 +50,11 @@ struct CropsView: View {
             SeedsView(
                 crop: crop,
                 deleteAction: { deleteCrop(crop: crop.wrappedValue) },
-                totalSeeds: calculateTotalSeeds() // Reorder arguments
+                totalSeeds: calculateTotalSeeds(), // Reorder arguments
+                saveAction: saveAction
             )
         } else {
-            GreenhouseView(crop: crop)
+            GreenhouseView(crop: crop, saveAction: saveAction)
         }
     }
     

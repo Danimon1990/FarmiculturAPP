@@ -4,6 +4,7 @@ struct BedEditView: View {
     let sectionIndex: Int
     let bedIndex: Int
     @Binding var crop: Crop
+    let saveAction: () -> Void
     
     @State private var newVarietyName: String = ""
     @State private var newVarietyCount: String = ""
@@ -20,12 +21,15 @@ struct BedEditView: View {
                 
                 Picker("Bed State", selection: $crop.sections[sectionIndex][bedIndex].state) {
                     ForEach(BedState.allCases, id: \.self) { state in
-                        Text(state.rawValue)
+                        Text(state.displayName)
                             .tag(state)
                     }
                 }
+                .onChange(of: crop.sections[sectionIndex][bedIndex].state) { _ in
+                    saveAction()
+                }
                 
-                Text(crop.sections[sectionIndex][bedIndex].state.rawValue)
+                Text(crop.sections[sectionIndex][bedIndex].state.displayName)
                     .foregroundColor(.secondary)
                     .font(.caption)
                 
@@ -47,6 +51,7 @@ struct BedEditView: View {
                 }
                 .onDelete { indexSet in
                     crop.sections[sectionIndex][bedIndex].varieties.remove(atOffsets: indexSet)
+                    saveAction()
                 }
                 
                 Button("Add Variety") {
@@ -69,9 +74,16 @@ struct BedEditView: View {
                             if let count = Int(newVarietyCount), !newVarietyName.isEmpty {
                                 let newVariety = PlantVariety(id: UUID(), name: newVarietyName, count: count)
                                 crop.sections[sectionIndex][bedIndex].varieties.append(newVariety)
+                                
+                                // Auto-change bed state to growing if it was ready
+                                if crop.sections[sectionIndex][bedIndex].state == .ready {
+                                    crop.sections[sectionIndex][bedIndex].state = .growing
+                                }
+                                
                                 newVarietyName = ""
                                 newVarietyCount = ""
                                 showingAddVariety = false
+                                saveAction() // Save when a new variety is added
                             }
                         }
                         .disabled(newVarietyName.isEmpty || Int(newVarietyCount) == nil)
@@ -87,7 +99,8 @@ struct BedEditView: View {
             HarvestView(
                 sectionIndex: sectionIndex,
                 bedIndex: bedIndex,
-                crop: $crop
+                crop: $crop,
+                saveAction: saveAction
             )
         }
     }

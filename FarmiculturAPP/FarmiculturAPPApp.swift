@@ -11,7 +11,7 @@ import Firebase
 
 @main
 struct FarmiculturAPPApp: App {
-    @StateObject private var firebaseService = FirebaseService.shared
+    @StateObject private var farmDataService = FarmDataService.shared
     
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
@@ -32,12 +32,12 @@ struct FarmiculturAPPApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if firebaseService.isAuthenticated {
-                ContentView()
-                    .environmentObject(firebaseService)
+            if farmDataService.isAuthenticated {
+                MainAppView()
+                    .environmentObject(farmDataService)
             } else {
                 AuthView()
-                    .environmentObject(firebaseService)
+                    .environmentObject(farmDataService)
             }
         }
         .modelContainer(sharedModelContainer)

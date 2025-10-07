@@ -1,9 +1,10 @@
 import SwiftUI
 
 struct AuthView: View {
-    @StateObject private var firebaseService = FirebaseService.shared
+    @EnvironmentObject var farmDataService: FarmDataService
     @State private var email = ""
     @State private var password = ""
+    @State private var displayName = ""
     @State private var isSignUp = false
     @State private var showingAlert = false
     
@@ -37,9 +38,14 @@ struct AuthView: View {
                     SecureField("Password", text: $password)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                     
+                    if isSignUp {
+                        TextField("Your Name", text: $displayName)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                    }
+                    
                     Button(action: performAuth) {
                         HStack {
-                            if firebaseService.isLoading {
+                            if farmDataService.isLoading {
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                     .scaleEffect(0.8)
@@ -53,7 +59,7 @@ struct AuthView: View {
                         .foregroundColor(.white)
                         .cornerRadius(10)
                     }
-                    .disabled(firebaseService.isLoading || email.isEmpty || password.isEmpty)
+                    .disabled(farmDataService.isLoading || email.isEmpty || password.isEmpty || (isSignUp && displayName.isEmpty))
                     
                     Button(action: { isSignUp.toggle() }) {
                         Text(isSignUp ? "Already have an account? Sign In" : "Don't have an account? Sign Up")
@@ -68,9 +74,9 @@ struct AuthView: View {
             .alert("Error", isPresented: $showingAlert) {
                 Button("OK") { }
             } message: {
-                Text(firebaseService.errorMessage ?? "An error occurred")
+                Text(farmDataService.errorMessage ?? "An error occurred")
             }
-            .onChange(of: firebaseService.errorMessage) { errorMessage in
+            .onChange(of: farmDataService.errorMessage) { errorMessage in
                 showingAlert = errorMessage != nil
             }
         }
@@ -79,9 +85,9 @@ struct AuthView: View {
     private func performAuth() {
         Task {
             if isSignUp {
-                await firebaseService.signUp(email: email, password: password)
+                await farmDataService.signUp(email: email, password: password, displayName: displayName)
             } else {
-                await firebaseService.signIn(email: email, password: password)
+                await farmDataService.signIn(email: email, password: password)
             }
         }
     }

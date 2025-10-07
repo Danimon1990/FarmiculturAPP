@@ -1,23 +1,30 @@
 import SwiftUI
 
+// MARK: - OLD PROTOTYPE - Needs update for new data model
+// This view uses the old Crop model and needs to be updated to work with the new Bed-based system
+// For now, it's commented out to avoid build errors
+
+/*
 struct LandMapPrototype: View {
     @State private var rows: Int = 6
     @State private var columns: Int = 8
     @State private var selected: GridPosition? = nil
-    @State private var mapAssignments: [GridPosition: String] = [:] // GridPosition -> Crop.id
-    @State private var showCropPicker = false
+    @State private var mapAssignments: [GridPosition: String] = [:] // GridPosition -> Bed.id
+    @State private var showBedPicker = false
     @State private var saveMessage: String? = nil
     
-    // Pass the crops list from the app
-    var crops: [Crop]
+    // Pass the beds list from the app
+    @Binding var beds: [Bed]
     
-    // For legend
-    let typeColors: [CropType: Color] = [
-        .greenhouse: .green,
-        .outdoorBeds: .brown,
-        .seeds: .yellow,
-        .treeCrops: .orange,
-        .highTunnels: .blue
+    // For legend - updated for new BedStatus
+    let statusColors: [BedStatus: Color] = [
+        .dirty: .brown,
+        .clean: .gray,
+        .prepared: .blue,
+        .planted: .cyan,
+        .growing: .green,
+        .harvesting: .orange,
+        .completed: .purple
     ]
     
     var body: some View {
@@ -276,12 +283,10 @@ struct CropPickerView: View {
 
 struct LandMapPrototype_Previews: PreviewProvider {
     static var previews: some View {
-        // Provide mock crops for preview
-        let crops = [
-            Crop(id: "1", type: .greenhouse, name: "Lettuce", isActive: true, sections: [], beds: [], sectionLength: 0, sectionWidth: 0, activities: [], expectedHarvestDate: Date(), seedVariety: nil, numberOfSeeds: nil, treeVariety: nil, numberOfTrees: nil, observations: [], seedStartDate: nil, seedLocation: nil, seedsPlanted: 0, potSize: nil, soilUsed: nil, tasks: []),
-            Crop(id: "2", type: .outdoorBeds, name: "Carrots", isActive: true, sections: [], beds: [], sectionLength: 0, sectionWidth: 0, activities: [], expectedHarvestDate: Date(), seedVariety: nil, numberOfSeeds: nil, treeVariety: nil, numberOfTrees: nil, observations: [], seedStartDate: nil, seedLocation: nil, seedsPlanted: 0, potSize: nil, soilUsed: nil, tasks: []),
-            Crop(id: "3", type: .seeds, name: "Tomato Seeds", isActive: false, sections: [], beds: [], sectionLength: 0, sectionWidth: 0, activities: [], expectedHarvestDate: Date(), seedVariety: nil, numberOfSeeds: nil, treeVariety: nil, numberOfTrees: nil, observations: [], seedStartDate: nil, seedLocation: nil, seedsPlanted: 0, potSize: nil, soilUsed: nil, tasks: [])
-        ]
-        LandMapPrototype(crops: crops)
+        // TODO: Update for new Bed-based system
+        Text("Preview needs update")
     }
-} 
+}
+*/
+
+// End of commented out LandMapPrototype - needs update for new Bed-based data model

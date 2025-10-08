@@ -17,6 +17,7 @@ struct LandMapView: View {
     @State private var saveMessage: String? = nil
     @State private var cropAreas: [CropArea] = []
     @State private var isLoading = false
+    @State private var isEditMode = false
     
     // Colors for different area types
     let areaTypeColors: [CropAreaType: Color] = [
@@ -28,17 +29,18 @@ struct LandMapView: View {
     ]
     
     var body: some View {
-        VStack {
-            Text("Land Map")
-                .font(.title)
-                .padding(.bottom)
-            
-            // Controls for grid size
-            HStack {
-                Stepper("Rows: \(rows)", value: $rows, in: 1...12)
-                Stepper("Columns: \(columns)", value: $columns, in: 1...16)
-            }
-            .padding(.bottom)
+        NavigationView {
+            VStack {
+                // Controls for grid size (only in edit mode)
+                if isEditMode {
+                    HStack {
+                        Stepper("Rows: \(rows)", value: $rows, in: 1...12)
+                        Stepper("Columns: \(columns)", value: $columns, in: 1...16)
+                    }
+                    .padding(.horizontal)
+                    .padding(.top)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
             
             // The grid
             GeometryReader { geometry in
@@ -54,9 +56,12 @@ struct LandMapView: View {
                                     area: area,
                                     isSelected: selected == pos,
                                     boxSize: boxSize,
+                                    isEditMode: isEditMode,
                                     onTap: {
-                                        selected = pos
-                                        showAreaPicker = true
+                                        if isEditMode {
+                                            selected = pos
+                                            showAreaPicker = true
+                                        }
                                     },
                                     boxColor: boxColor,
                                     areaAbbreviation: areaAbbreviation
@@ -69,34 +74,51 @@ struct LandMapView: View {
             }
             .aspectRatio(1.3, contentMode: .fit)
             .padding()
-            
-            // Save/Load
-            HStack {
-                Button("Save Map") {
-                    saveMap()
+
+                // Save button (only in edit mode)
+                if isEditMode {
+                    Button("Save Map") {
+                        saveMap()
+                        withAnimation {
+                            isEditMode = false
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                .buttonStyle(.borderedProminent)
-                .padding(.trailing)
-                Button("Load Map") {
-                    loadMap()
+
+                if let saveMessage = saveMessage {
+                    Text(saveMessage)
+                        .font(.footnote)
+                        .foregroundColor(.green)
                 }
-            }
-            if let saveMessage = saveMessage {
-                Text(saveMessage)
+
+                // Legend
+                legendView
+                    .padding(.top)
+
+                Text(isEditMode ? "Tap a box to assign a crop area. Adjust grid size above." : "Tap Edit to modify the map layout.")
                     .font(.footnote)
-                    .foregroundColor(.green)
+                    .foregroundColor(.secondary)
+                    .padding(.top)
             }
-            
-            // Legend
-            legendView
-                .padding(.top)
-            
-            Text("Tap a box to assign a crop area. Adjust grid size above. Each area shows its type color and abbreviated name. Unassigned squares appear gray.")
-                .font(.footnote)
-                .foregroundColor(.secondary)
-                .padding(.top)
+            .padding()
+            .navigationTitle("Land Map")
+            .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(isEditMode ? "Done" : "Edit") {
+                        withAnimation {
+                            isEditMode.toggle()
+                            if !isEditMode {
+                                saveMap()
+                            }
+                        }
+                    }
+                    .fontWeight(isEditMode ? .semibold : .regular)
+                }
+            }
         }
-        .padding()
         .sheet(isPresented: $showAreaPicker) {
             AreaPickerView(
                 areas: cropAreas,
@@ -215,10 +237,11 @@ struct LandMapBoxView: View {
     let area: CropArea?
     let isSelected: Bool
     let boxSize: CGFloat
+    let isEditMode: Bool
     let onTap: () -> Void
     let boxColor: (CropArea?) -> Color
     let areaAbbreviation: (CropArea) -> String
-    
+
     var body: some View {
         ZStack {
             Rectangle()
@@ -229,6 +252,7 @@ struct LandMapBoxView: View {
                         .stroke(isSelected ? Color.accentColor : Color.black.opacity(0.2), lineWidth: isSelected ? 3 : 1)
                 )
                 .onTapGesture { onTap() }
+                .opacity(isEditMode ? 1.0 : 0.9)
             if let area = area {
                 Text(areaAbbreviation(area))
                     .font(.caption2)
@@ -238,9 +262,10 @@ struct LandMapBoxView: View {
                     .minimumScaleFactor(0.5)
                     .multilineTextAlignment(.center)
                     .padding(2)
-            } else {
+            } else if isEditMode {
                 Image(systemName: "plus")
                     .foregroundColor(.gray)
+                    .font(.caption)
             }
         }
     }

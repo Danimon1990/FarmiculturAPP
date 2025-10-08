@@ -429,29 +429,51 @@ class FarmDataService: ObservableObject {
     // MARK: - Task Operations
     
     func createTask(_ task: BedTask) async throws {
-        guard let farmId = currentFarmId else { throw FarmDataError.noFarmSelected }
+        guard let farmId = currentFarmId else {
+            print("❌ No farm selected for task creation")
+            throw FarmDataError.noFarmSelected
+        }
+
+        print("🔄 Creating task: \(task.title)")
+        print("   - Farm ID: \(farmId)")
+        print("   - Task ID: \(task.id)")
+        print("   - Priority: \(task.priority.rawValue)")
+        print("   - Crop Area ID: \(task.cropAreaId ?? "none")")
+
         let data = try Firestore.Encoder().encode(task)
+        print("   - Encoded data keys: \(data.keys.joined(separator: ", "))")
+
         try await db.collection("farms").document(farmId)
             .collection("tasks").document(task.id).setData(data)
+
+        print("✅ Task created successfully in Firebase")
     }
     
     func loadTasks(farmId: String, bedId: String? = nil, isCompleted: Bool? = nil) async throws -> [BedTask] {
+        print("🔄 Loading tasks for farm: \(farmId)")
+
         var query: Query = db.collection("farms").document(farmId)
             .collection("tasks")
-            .order(by: "dueDate")
-        
+            .order(by: "createdDate", descending: true)
+
         if let bedId = bedId {
             query = query.whereField("bedId", isEqualTo: bedId)
         }
-        
+
         if let completed = isCompleted {
             query = query.whereField("isCompleted", isEqualTo: completed)
         }
-        
+
         let snapshot = try await query.getDocuments()
-        return try snapshot.documents.compactMap { doc in
-            try Firestore.Decoder().decode(BedTask.self, from: doc.data())
+        print("✅ Found \(snapshot.documents.count) task documents")
+
+        let tasks = try snapshot.documents.compactMap { doc -> BedTask? in
+            print("   - Task document ID: \(doc.documentID)")
+            return try Firestore.Decoder().decode(BedTask.self, from: doc.data())
         }
+
+        print("✅ Decoded \(tasks.count) tasks")
+        return tasks
     }
     
     func updateTask(_ task: BedTask) async throws {

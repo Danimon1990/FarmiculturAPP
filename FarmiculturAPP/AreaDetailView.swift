@@ -19,10 +19,23 @@ struct AreaDetailView: View {
     @State private var showingDeleteSectionAlert = false
     @State private var showingDeleteAreaAlert = false
     @State private var selectedBed: Bed?
-    @State private var showingBedDetail = false
+    @State private var showingAddTask = false
+    @State private var allCropAreas: [CropArea] = []
     
     var body: some View {
         List {
+            // Loading indicator
+            if isLoading {
+                Section {
+                    HStack {
+                        Spacer()
+                        ProgressView("Loading beds...")
+                        Spacer()
+                    }
+                    .padding()
+                }
+            }
+
             // Sections with Bed Matrices
             ForEach(sections) { cropSection in
                 Section(header: HStack {
@@ -31,7 +44,7 @@ struct AreaDetailView: View {
                     Text("\(bedCount(for: cropSection)) beds")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    
+
                     Button(action: {
                         deleteSection(cropSection)
                     }) {
@@ -48,14 +61,21 @@ struct AreaDetailView: View {
                     }
                 }) {
                     let sectionBeds = allBeds.filter { $0.sectionId == cropSection.id }
-                    if sectionBeds.isEmpty {
+                    if sectionBeds.isEmpty && !isLoading {
                         Text("No beds in this section")
                             .foregroundColor(.secondary)
                             .italic()
-                    } else {
+                    } else if !sectionBeds.isEmpty {
                         BedMatrixView(beds: .constant(sectionBeds), area: area, section: cropSection, onBedSelected: { bed in
-                            selectedBed = bed
-                            showingBedDetail = true
+                            print("🔵 Bed selected: \(bed.bedNumber)")
+                            // Find the bed in allBeds to get the full data
+                            if let fullBed = allBeds.first(where: { $0.id == bed.id }) {
+                                print("🔵 Found full bed in allBeds with \(fullBed.varieties.count) varieties")
+                                selectedBed = fullBed
+                            } else {
+                                print("⚠️ Bed not found in allBeds array, using passed bed")
+                                selectedBed = bed
+                            }
                         })
                     }
                 }
@@ -97,9 +117,13 @@ struct AreaDetailView: View {
                     Button(action: { showingAddSection = true }) {
                         Label("Add Section", systemImage: "plus")
                     }
-                    
+
+                    Button(action: { showingAddTask = true }) {
+                        Label("Create Task", systemImage: "checklist")
+                    }
+
                     Divider()
-                    
+
                     Button(role: .destructive, action: { showingDeleteAreaAlert = true }) {
                         Label("Delete Area", systemImage: "trash")
                     }
@@ -111,32 +135,11 @@ struct AreaDetailView: View {
         .sheet(isPresented: $showingAddSection) {
             AddSectionView(area: area, sections: $sections)
         }
-        .sheet(isPresented: $showingBedDetail, onDismiss: {
-            // Reload beds when sheet is dismissed to get latest data from Firebase
-            print("🔄 Bed detail sheet dismissed, reloading beds...")
-            loadSections()
-        }) {
-            if let bed = selectedBed, let section = sections.first(where: { $0.id == bed.sectionId }) {
-                NavigationView {
-                    BedDetailView(bed: Binding(
-                        get: {
-                            // Always return the latest version from selectedBed
-                            selectedBed ?? bed
-                        },
-                        set: { newBed in
-                            print("🔄 Updating bed in AreaDetailView: \(newBed.bedNumber)")
-                            // Update the bed in the allBeds array
-                            if let index = allBeds.firstIndex(where: { $0.id == newBed.id }) {
-                                allBeds[index] = newBed
-                                print("✅ Bed updated in allBeds array at index \(index)")
-                            } else {
-                                print("❌ Bed not found in allBeds array")
-                            }
-                            selectedBed = newBed
-                        }
-                    ), area: area, section: section)
-                }
-            }
+        .sheet(isPresented: $showingAddTask) {
+            AddTaskView(tasks: .constant([]), cropAreas: allCropAreas, preselectedCropAreaId: area.id)
+        }
+        .sheet(item: $selectedBed, onDismiss: onBedSheetDismiss) { bed in
+            bedDetailSheet(for: bed)
         }
         .alert("Delete Section", isPresented: $showingDeleteSectionAlert) {
             Button("Cancel", role: .cancel) {
@@ -242,19 +245,57 @@ struct AreaDetailView: View {
         }
     }
     
+    func onBedSheetDismiss() {
+        // Reload beds when sheet is dismissed to get latest data from Firebase
+        print("🔄 Bed detail sheet dismissed, reloading beds...")
+        loadSections()
+    }
+
+    @ViewBuilder
+    func bedDetailSheet(for bed: Bed) -> some View {
+        if let section = sections.first(where: { $0.id == bed.sectionId }) {
+            NavigationView {
+                BedDetailView(bed: Binding(
+                    get: {
+                        // Always return the latest version from selectedBed
+                        selectedBed ?? bed
+                    },
+                    set: { newBed in
+                        print("🔄 Updating bed in AreaDetailView: \(newBed.bedNumber)")
+                        // Update the bed in the allBeds array
+                        if let index = allBeds.firstIndex(where: { $0.id == newBed.id }) {
+                            allBeds[index] = newBed
+                            print("✅ Bed updated in allBeds array at index \(index)")
+                        } else {
+                            print("❌ Bed not found in allBeds array")
+                        }
+                        selectedBed = newBed
+                    }
+                ), area: area, section: section)
+            }
+        } else {
+            Text("Section not found")
+                .foregroundColor(.red)
+        }
+    }
+
     func loadSections() {
-        guard let farmId = farmService.currentFarmId else { 
+        guard let farmId = farmService.currentFarmId else {
             print("❌ No farm ID for loading sections")
-            return 
+            return
         }
         isLoading = true
-        
+
         Task {
             do {
                 print("🔄 Loading sections for area: \(area.name)")
                 sections = try await farmService.loadSections(farmId: farmId, areaId: area.id)
                 print("✅ Loaded \(sections.count) sections")
-                
+
+                // Load all crop areas for task creation
+                allCropAreas = try await farmService.loadCropAreas(farmId: farmId)
+                print("✅ Loaded \(allCropAreas.count) crop areas")
+
                 // Load all beds for this area
                 var tempBeds: [Bed] = []
                 for section in sections {

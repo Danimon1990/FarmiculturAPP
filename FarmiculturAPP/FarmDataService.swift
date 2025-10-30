@@ -482,6 +482,200 @@ class FarmDataService: ObservableObject {
         try await db.collection("farms").document(farmId)
             .collection("tasks").document(task.id).setData(data, merge: true)
     }
+
+    // MARK: - Worker Profiles (MCP)
+
+    func saveWorkerProfile(_ profile: WorkerProfile) async throws {
+        guard let farmId = currentFarmId else { throw FarmDataError.noFarmSelected }
+        let data = try Firestore.Encoder().encode(profile)
+        try await db.collection("farms").document(farmId)
+            .collection("workerProfiles").document(profile.id).setData(data)
+    }
+
+    func loadWorkerProfile(userId: String) async throws -> WorkerProfile? {
+        guard let farmId = currentFarmId else { throw FarmDataError.noFarmSelected }
+        let doc = try await db.collection("farms").document(farmId)
+            .collection("workerProfiles").document(userId).getDocument()
+        return try doc.data(as: WorkerProfile.self)
+    }
+
+    func loadAllWorkerProfiles() async throws -> [WorkerProfile] {
+        guard let farmId = currentFarmId else { throw FarmDataError.noFarmSelected }
+        let snapshot = try await db.collection("farms").document(farmId)
+            .collection("workerProfiles").getDocuments()
+        return snapshot.documents.compactMap { try? $0.data(as: WorkerProfile.self) }
+    }
+
+    // MARK: - Crop Statistics (MCP)
+
+    func saveCropStats(_ stats: CropStats) async throws {
+        guard let farmId = currentFarmId else { throw FarmDataError.noFarmSelected }
+        let data = try Firestore.Encoder().encode(stats)
+        try await db.collection("farms").document(farmId)
+            .collection("cropStats").document(stats.id).setData(data)
+    }
+
+    func loadCropStats(cropName: String) async throws -> CropStats? {
+        guard let farmId = currentFarmId else { throw FarmDataError.noFarmSelected }
+        let cropId = cropName.lowercased().replacingOccurrences(of: " ", with: "-")
+        let doc = try await db.collection("farms").document(farmId)
+            .collection("cropStats").document(cropId).getDocument()
+        return try doc.data(as: CropStats.self)
+    }
+
+    func loadAllCropStats() async throws -> [CropStats] {
+        guard let farmId = currentFarmId else { throw FarmDataError.noFarmSelected }
+        let snapshot = try await db.collection("farms").document(farmId)
+            .collection("cropStats").getDocuments()
+        return snapshot.documents.compactMap { try? $0.data(as: CropStats.self) }
+    }
+
+    // MARK: - Harvest Forecasts (MCP)
+
+    func saveHarvestForecast(_ forecast: HarvestForecast) async throws {
+        guard let farmId = currentFarmId else { throw FarmDataError.noFarmSelected }
+        let data = try Firestore.Encoder().encode(forecast)
+        try await db.collection("farms").document(farmId)
+            .collection("harvestForecasts").document(forecast.id).setData(data)
+    }
+
+    func loadHarvestForecasts(isCurrent: Bool = true) async throws -> [HarvestForecast] {
+        guard let farmId = currentFarmId else { throw FarmDataError.noFarmSelected }
+        let snapshot = try await db.collection("farms").document(farmId)
+            .collection("harvestForecasts")
+            .whereField("isCurrent", isEqualTo: isCurrent)
+            .order(by: "expectedHarvestStart")
+            .getDocuments()
+        return snapshot.documents.compactMap { try? $0.data(as: HarvestForecast.self) }
+    }
+
+    func loadHarvestForecastsForDateRange(start: Date, end: Date) async throws -> [HarvestForecast] {
+        guard let farmId = currentFarmId else { throw FarmDataError.noFarmSelected }
+        let snapshot = try await db.collection("farms").document(farmId)
+            .collection("harvestForecasts")
+            .whereField("isCurrent", isEqualTo: true)
+            .whereField("expectedHarvestStart", isGreaterThanOrEqualTo: start)
+            .whereField("expectedHarvestStart", isLessThanOrEqualTo: end)
+            .getDocuments()
+        return snapshot.documents.compactMap { try? $0.data(as: HarvestForecast.self) }
+    }
+
+    // MARK: - Production Plans (MCP)
+
+    func saveProductionPlan(_ plan: ProductionPlan) async throws {
+        guard let farmId = currentFarmId else { throw FarmDataError.noFarmSelected }
+        let data = try Firestore.Encoder().encode(plan)
+        try await db.collection("farms").document(farmId)
+            .collection("productionPlans").document(plan.id).setData(data)
+    }
+
+    func loadProductionPlans(status: PlanningStatus? = nil) async throws -> [ProductionPlan] {
+        guard let farmId = currentFarmId else { throw FarmDataError.noFarmSelected }
+        var query: Query = db.collection("farms").document(farmId)
+            .collection("productionPlans")
+
+        if let status = status {
+            query = query.whereField("planningStatus", isEqualTo: status.rawValue)
+        }
+
+        let snapshot = try await query.getDocuments()
+        return snapshot.documents.compactMap { try? $0.data(as: ProductionPlan.self) }
+    }
+
+    func updateProductionPlan(_ plan: ProductionPlan) async throws {
+        try await saveProductionPlan(plan)
+    }
+
+    // MARK: - Farm Status Query (for AI Chat)
+
+    func getFarmStatusSummary() async throws -> FarmStatusSummary {
+        guard let farmId = currentFarmId else { throw FarmDataError.noFarmSelected }
+
+        // Load all necessary data
+        let cropAreas = try await loadCropAreas(farmId: farmId)
+
+        // Load all beds from all areas
+        var allBeds: [Bed] = []
+        for area in cropAreas {
+            let areaBeds = try await loadAllBeds(farmId: farmId, areaId: area.id)
+            allBeds.append(contentsOf: areaBeds)
+        }
+
+        // Load tasks
+        let tasks = try await loadTasks(farmId: farmId, bedId: nil, isCompleted: false)
+
+        // Calculate crop area breakdown
+        var areaBreakdown: [String: Int] = [:]
+        for area in cropAreas {
+            let typeName = area.type.displayName
+            areaBreakdown[typeName, default: 0] += 1
+        }
+
+        // Calculate bed status counts
+        let cleanCount = allBeds.filter { $0.status == .clean || $0.status == .prepared }.count
+        let plantedCount = allBeds.filter { $0.status == .planted }.count
+        let growingCount = allBeds.filter { $0.status == .growing }.count
+        let harvestingCount = allBeds.filter { $0.status == .harvesting }.count
+
+        let bedStatusCounts = FarmStatusSummary.BedStatusCounts(
+            available: cleanCount,
+            planted: plantedCount,
+            growing: growingCount,
+            harvesting: harvestingCount,
+            total: allBeds.count
+        )
+
+        // Get unique active crops from beds that are planted, growing, or harvesting
+        let activeBeds = allBeds.filter { bed in
+            bed.status == .planted || bed.status == .growing || bed.status == .harvesting
+        }
+
+        var uniqueCrops = Set<String>()
+        for bed in activeBeds {
+            // Use currentCropName if available, otherwise use variety names
+            if let cropName = bed.currentCropName, !cropName.isEmpty {
+                uniqueCrops.insert(cropName)
+            } else {
+                for variety in bed.varieties where !variety.name.isEmpty {
+                    uniqueCrops.insert(variety.name)
+                }
+            }
+        }
+
+        // Format upcoming tasks (limit to top 10 by priority and due date)
+        let sortedTasks = tasks
+            .sorted { task1, task2 in
+                // Sort by priority first
+                if task1.priority != task2.priority {
+                    return task1.priority.rawValue > task2.priority.rawValue
+                }
+                // Then by due date
+                if let date1 = task1.dueDate, let date2 = task2.dueDate {
+                    return date1 < date2
+                }
+                return task1.dueDate != nil
+            }
+            .prefix(10)
+
+        let taskSummaries = sortedTasks.map { task in
+            FarmStatusSummary.TaskSummary(
+                title: task.title,
+                dueDate: task.dueDate,
+                priority: task.priority.rawValue
+            )
+        }
+
+        return FarmStatusSummary(
+            date: Date(),
+            totalCropAreas: cropAreas.count,
+            cropAreaBreakdown: areaBreakdown,
+            activeCrops: Array(uniqueCrops).sorted(),
+            bedStatusCounts: bedStatusCounts,
+            upcomingTasks: taskSummaries,
+            recentHarvests: nil, // Can be enhanced later
+            availableWorkers: nil // Can be enhanced later
+        )
+    }
 }
 
 // MARK: - Errors

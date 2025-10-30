@@ -118,4 +118,13 @@ iOSInjectionProject/
 # *.json
 
 # Firebase
-GoogleService-Info.plist 
+GoogleService-Info.plist
+firebase-service-account.json
+
+# Node.js
+node_modules/
+package-lock.json
+
+# Temporary test files
+test-app-connection.swift
+check-firebase-data.js 

@@ -26,35 +26,29 @@ struct MainAppView: View {
                 FirstTimeSetupView()
             } else {
                 TabView(selection: $selectedTab) {
-                    CropAreasView()
+                    EnhancedAreasView()
                         .tabItem {
-                            Label("Areas", systemImage: "building.2.fill")
+                            Label("Areas", systemImage: "map.fill")
                         }
                         .tag(0)
-                    
-                    AllBedsView()
-                        .tabItem {
-                            Label("Beds", systemImage: "square.grid.3x3.fill")
-                        }
-                        .tag(1)
-                    
+
                     HarvestDashboardView()
                         .tabItem {
                             Label("Harvest", systemImage: "basket.fill")
                         }
-                        .tag(2)
-                    
+                        .tag(1)
+
                     TasksView()
                         .tabItem {
                             Label("Tasks", systemImage: "checklist")
                         }
-                        .tag(3)
-                    
-                    LandMapView()
+                        .tag(2)
+
+                    ChatView()
                         .tabItem {
-                            Label("Map", systemImage: "map")
+                            Label("Chat", systemImage: "bubble.left.and.bubble.right.fill")
                         }
-                        .tag(4)
+                        .tag(3)
                 }
             }
         }

@@ -271,7 +271,7 @@ struct LandMapBoxView: View {
     }
 }
 
-struct GridPosition: Hashable {
+struct GridPosition: Codable, Hashable {
     let row: Int
     let col: Int
     
